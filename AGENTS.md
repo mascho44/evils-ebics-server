@@ -6,22 +6,16 @@ Normal git workflow applies: branch -> PR -> merge -> deploy, same as any other 
 
 ## Deployment
 
-The server runs as Docker Compose services on a single host, one stack for production and one for
-staging (each with its own `postgres` service and data volume). The Dockerfile copies a pre-built jar
-(`target/evils-ebics-server-*.jar`) instead of building from source inside the image.
+The server runs as Docker Compose services on a single host (`docker-compose.prod.yml`, with its own
+`postgres` service and data volume). The Dockerfile is multi-stage: the jar is built from source inside
+the image, so no local Maven build or pre-built jar is needed.
 
-Per release: build the jar locally (`mvn package`), copy the Dockerfile and **exactly one** jar into a
-fresh build directory named after the version on the host, dump both databases (`pg_dump -Fc`), tag
-the running images as `before-<version>`, build the new image from the build directory, then recreate
-the app container - staging first, production after - with an explicit Compose project name
-(`docker compose -p <project> -f <compose file> up -d --no-build app`). The database containers and
-their volumes (participants, keys, ledger, accounts) are untouched by an app-only update.
-
-Why exactly one jar: the wildcard `COPY` silently picks whichever match Docker's glob returns when
-more than one `target/evils-ebics-server-*.jar` exists (lexical order, not version order or mtime -
-e.g. `0.10.0` sorts before `0.9.0`), so a leftover jar can get built into the image instead of the new
-one, with no error and no obvious symptom beyond "the feature I just deployed isn't there".
-Server-specific names, paths and credentials are deliberately not kept in this repository.
+Per release: transfer the sources to the host (e.g. `git archive HEAD | ssh <host> tar -x -C <dir>`),
+dump the database (`pg_dump -Fc`), then rebuild and recreate only the app container
+(`docker compose -f docker-compose.prod.yml up -d --build app`). The database container and its
+volume (participants, keys, ledger, accounts) are untouched by an app-only update. If files were
+removed in the repository, delete the old target directory before extracting, since `tar` does not
+remove them. Server-specific names, paths and credentials are deliberately not kept in this repository.
 
 ## Project instructions
 

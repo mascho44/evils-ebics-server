@@ -118,7 +118,6 @@ Do not combine the two: Compose could take over the published development ports.
 3. Build and start with the server configuration only:
 
    ```bash
-   mvn clean package
    docker compose -f docker-compose.prod.yml up --build -d
    docker compose -f docker-compose.prod.yml ps
    ```
@@ -131,8 +130,7 @@ Include the PostgreSQL volume and the crypto master secret in your backup concep
 secret casually: already protected keys must remain decryptable. `docker compose down -v` deletes the
 database and is not a normal update step. See [Backup and restore](docs/BACKUP.md).
 
-> Always build with `mvn clean package`. The Dockerfile copies `target/evils-ebics-server-*.jar`, and
-> a stale jar or old class files from earlier builds can end up in the image.
+> The image is built inside Docker from the sources; no local Maven build or jar is needed.
 
 ## Connecting an EBICS client
 

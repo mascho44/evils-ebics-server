@@ -1,10 +1,17 @@
+# Mehrstufig: Build mit Maven+JDK im Container, Laufzeit nur mit JRE.
+# Es wird immer sauber aus dem Quellcode gebaut, kein vorgebautes JAR noetig.
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /build
+COPY pom.xml .
+RUN mvn -q -B dependency:go-offline
+COPY src ./src
+RUN mvn -q -B clean package -DskipTests
+
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY target/evils-ebics-server-*.jar app.jar
+COPY --from=build /build/target/evils-ebics-server-*.jar app.jar
 EXPOSE 8080
-# Ohne dies zeigte "docker compose ps"/ein Orchestrator fuer diesen Service nie eine
-# Bereitschaft an (kein Healthcheck ueberhaupt), damit der Container erst als gesund gilt,
-# wenn die Anwendung antwortet.
+# Healthcheck, damit der Container erst als gesund gilt, wenn die Anwendung antwortet.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD wget -qO- http://localhost:8080/actuator/health | grep -q '"status":"UP"' || exit 1
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

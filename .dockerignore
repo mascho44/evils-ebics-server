@@ -1,0 +1,6 @@
+target
+.git
+.env
+initial-admin-credentials.txt
+*.dump
+backup-*

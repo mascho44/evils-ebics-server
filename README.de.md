@@ -121,7 +121,6 @@ Beide Dateien nicht kombinieren: Compose kann sonst die veröffentlichten Entwic
 3. Bauen und ausschließlich mit der Server-Konfiguration starten:
 
    ```bash
-   mvn clean package
    docker compose -f docker-compose.prod.yml up --build -d
    docker compose -f docker-compose.prod.yml ps
    ```
@@ -135,8 +134,7 @@ nicht beliebig austauschen: Bereits geschützte Schlüssel müssen weiterhin ent
 `docker compose down -v` löscht die Datenbank und ist kein normaler Update-Schritt. Siehe
 [Sicherung und Wiederherstellung](docs/BACKUP.md).
 
-> Immer mit `mvn clean package` bauen. Das Dockerfile kopiert `target/evils-ebics-server-*.jar`, und ein
-> altes JAR oder alte Klassen früherer Builds können sonst im Image landen.
+> Das Image wird in Docker aus dem Quellcode gebaut; ein lokaler Maven-Build oder ein JAR ist nicht nötig.
 
 ## Einen EBICS-Client einrichten
 
