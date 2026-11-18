@@ -10,7 +10,7 @@ EBICS-Gegenüber.
 > produktionsreifer Bankserver und erhebt keinen Anspruch auf EBICS-Konformität. Niemals mit echten
 > Bankdaten oder echtem Geld verwenden.
 
-Java 21 · Spring Boot 3.5 · PostgreSQL · Docker · Lizenz [GPL-3.0](LICENSE)
+Java 21 · Spring Boot 4.1 · PostgreSQL · Docker · Lizenz [GPL-3.0](LICENSE)
 
 ## Funktionsumfang
 
