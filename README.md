@@ -10,7 +10,7 @@ realistic EBICS counterpart.
 > production-grade bank server, and it makes no claim of EBICS conformity. Never use it with real
 > bank data or real money.
 
-Java 21 · Spring Boot 3.5 · PostgreSQL · Docker · licensed under [GPL-3.0](LICENSE)
+Java 21 · Spring Boot 4.1 · PostgreSQL · Docker · licensed under [GPL-3.0](LICENSE)
 
 ## What it does
 

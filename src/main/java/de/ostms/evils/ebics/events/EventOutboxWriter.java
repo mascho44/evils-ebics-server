@@ -1,5 +1,5 @@
 package de.ostms.evils.ebics.events;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import de.ostms.evils.ebics.domain.PaymentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.*;
@@ -17,6 +17,6 @@ public class EventOutboxWriter {
             "payment."+payment.getKind().toLowerCase(Locale.ROOT),"payment",String.valueOf(payment.getPaymentOrderId()),
             payment.getOccurredAt(),new IntegrationEvent.PaymentData(payment.getPaymentOrderId(),payment.getKind()));
         try{outbox.save(new EventOutbox(event.id(),mapper.writeValueAsString(event),event.occurredAt()));}
-        catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException("Cannot serialize integration event",e);}
+        catch(tools.jackson.core.JacksonException e){throw new IllegalStateException("Cannot serialize integration event",e);}
     }
 }

@@ -1,6 +1,6 @@
 package de.ostms.evils.ebics.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import de.ostms.evils.ebics.domain.PaymentEvent;
 import de.ostms.evils.ebics.events.*;
 import de.ostms.evils.ebics.persistence.PaymentEventRepository;

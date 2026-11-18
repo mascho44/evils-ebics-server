@@ -6,7 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 /** Same login form/endpoint as Spring Security's default (username + password), plus an optional
  * "totp" field - builds a TotpAuthenticationToken instead of the plain
@@ -22,7 +22,7 @@ public class TotpLoginFilter extends UsernamePasswordAuthenticationFilter {
         // course fails and bounces to the error page - looking exactly like "login keeps failing"
         // even right after a genuinely successful login elsewhere. Restrict to POST, like the
         // login form itself always uses.
-        setRequiresAuthenticationRequestMatcher(new AntPathRequestMatcher("/login", HttpMethod.POST.name()));
+        setRequiresAuthenticationRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/login"));
         // THE ACTUAL PRODUCTION INCIDENT (2026-09-26): built manually with `new` instead of via
         // HttpSecurity's formLogin() DSL, this filter never received the session-backed
         // SecurityContextRepository that DSL wires in automatically - AbstractAuthenticationProcessingFilter's
