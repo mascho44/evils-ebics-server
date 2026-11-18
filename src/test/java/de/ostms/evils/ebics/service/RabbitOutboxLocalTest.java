@@ -1,7 +1,7 @@
 package de.ostms.evils.ebics.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import de.ostms.evils.ebics.domain.Account;
 import de.ostms.evils.ebics.events.*;
 import de.ostms.evils.ebics.persistence.AccountRepository;
