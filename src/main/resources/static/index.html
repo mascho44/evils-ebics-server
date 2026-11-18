@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVILS EBICS Server</title>
+  <style>
+    :root { color-scheme: dark; --bg:#09111f; --panel:#111d31; --line:#243550; --text:#e8eef9; --muted:#9bb0ce; --accent:#4f9cff; }
+    * { box-sizing:border-box } body { margin:0; min-height:100vh; display:grid; place-items:center; font:16px/1.55 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--text); background:linear-gradient(135deg,#09111f,#101d34); padding:24px }
+    main { max-width:620px; width:100%; background:rgba(17,29,49,.93); border:1px solid var(--line); border-radius:16px; padding:34px; box-shadow:0 20px 50px rgba(0,0,0,.2) }
+    .badge { display:inline-block; color:#b7f6d4; background:#163d31; padding:5px 10px; border-radius:999px; font-size:13px; margin-bottom:16px }
+    h1 { margin:0 0 8px; font-size:26px } h1 span { color:var(--accent) }
+    p { color:var(--muted); margin:0 0 16px }
+    code { display:block; margin:0 0 20px; padding:14px; border-radius:9px; background:#09111f; color:#b7f6d4; overflow-wrap:anywhere; font-size:13px }
+    .actions { display:flex; gap:12px; flex-wrap:wrap }
+    .button { cursor:pointer; text-decoration:none; font-weight:650; padding:11px 16px; border-radius:9px; display:inline-block }
+    .button.primary { background:var(--accent); color:white }
+    .button.secondary { background:transparent; color:var(--text); border:1px solid var(--line) }
+    .button:hover { filter:brightness(1.12) }
+  </style>
+</head>
+<body>
+<main>
+  <div class="badge">● Dienst aktiv</div>
+  <h1><span>EVILS</span> EBICS Server</h1>
+  <p>Ein Mock-EBICS-Bankserver für Testzwecke - simuliert Kontoführung, Kontoauszüge und
+    Zahlungsverkehr für die Anbindungstests von EBICS-Clients.</p>
+  <code>POST https://ebics.example.com/ebicsweb<br>Content-Type: application/xml</code>
+  <p>Jeder Mandant ist eine eigenständige, isolierte Sandbox-Bank mit eigenen Konten, Teilnehmern
+    und einem eigenen Admin-Login.</p>
+  <div class="actions">
+    <a class="button primary" href="/signup.html">Eigene Sandbox anfragen</a>
+    <a class="button secondary" href="/admin.html">Admin-Anmeldung</a>
+  </div>
+</main>
+</body></html>

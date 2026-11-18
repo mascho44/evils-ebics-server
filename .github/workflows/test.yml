@@ -1,0 +1,18 @@
+# Runs the test suite on every push and pull request.
+name: Server tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn --batch-mode verify
+      - run: bash -n scripts/backup.sh scripts/restore-check.sh
+      - run: node --check src/main/resources/static/payment-details.js

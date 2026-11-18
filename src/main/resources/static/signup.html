@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVILS EBICS Server · Sandbox anfragen</title>
+  <style>
+    :root { color-scheme: dark; --bg:#09111f; --panel:#111d31; --line:#243550; --text:#e8eef9; --muted:#9bb0ce; --accent:#4f9cff; --good:#35c58a; --bad:#ff7b8c; }
+    * { box-sizing:border-box } body { margin:0; min-height:100vh; display:grid; place-items:center; font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--text); background:linear-gradient(135deg,#09111f,#101d34); padding:24px }
+    main { max-width:560px; width:100%; background:rgba(17,29,49,.93); border:1px solid var(--line); border-radius:16px; padding:30px; box-shadow:0 20px 50px rgba(0,0,0,.2) }
+    h1 { font-size:22px; margin:0 0 6px } h1 span { color:var(--accent) }
+    p.lead { color:var(--muted); margin:0 0 20px }
+    form { display:grid; grid-template-columns:repeat(2,1fr); gap:12px }
+    label { display:grid; gap:5px; color:var(--muted); font-size:12px }
+    input { font:inherit; color:var(--text); background:#0b1525; border-radius:8px; border:1px solid var(--line); padding:9px 10px }
+    .full { grid-column:1/-1 }
+    button { cursor:pointer; background:var(--accent); color:white; border:0; font-weight:650; padding:10px 14px; border-radius:8px }
+    button:hover { filter:brightness(1.12) }
+    button:disabled { opacity:.6; cursor:default }
+    #result { min-height:22px; margin-top:4px }
+    .error { color:var(--bad) } .success { color:var(--good) }
+    .hint { color:var(--muted); font-size:12px; margin:0 0 20px }
+  </style>
+</head>
+<body>
+<main>
+  <h1><span>EVILS</span> EBICS Server</h1>
+  <p class="lead">Eigenen Sandbox-Mandanten anfragen</p>
+  <p class="hint">Eine eigene, isolierte Testbank mit eigenen Konten/Teilnehmern und einem eigenen
+    Admin-Login für die <a href="/" style="color:var(--accent)">Admin-Oberfläche</a>. Die Anfrage
+    wird von einem Systemadministrator geprüft und manuell freigegeben - das kann etwas dauern.
+    Benutzername und Passwort für den Admin-Login bitte gleich hier festlegen; nach Freigabe damit
+    einfach einloggen.</p>
+  <form id="signupForm">
+    <label class="full">Ihre E-Mail-Adresse <input id="requesterEmail" type="email" required placeholder="fuer Rueckmeldung zur Freigabe/Ablehnung"></label>
+    <label>Host-ID <input id="hostId" required placeholder="z. B. MEINETESTBANK" maxlength="60"></label>
+    <label>Bankname <input id="hostName" required placeholder="z. B. Meine Testbank"></label>
+    <label>Protokollversion <input id="protocolVersion" value="H005"></label>
+    <label>BIC (optional) <input id="bic" placeholder="z. B. MEINDEFFXXX"></label>
+    <label class="full">Admin-Benutzername <input id="adminUsername" required autocomplete="username"></label>
+    <label class="full">Anzeigename <input id="adminDisplayName" placeholder="optional"></label>
+    <label>Passwort <input id="adminPassword" type="password" minlength="8" required autocomplete="new-password"></label>
+    <label>Passwort wiederholen <input id="adminPasswordRepeat" type="password" minlength="8" required autocomplete="new-password"></label>
+    <div class="full"><button type="submit" id="submitButton">Sandbox anfragen</button><div id="result"></div></div>
+  </form>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+$('signupForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const result=$('result'), button=$('submitButton');
+  result.className=''; result.textContent='';
+  if ($('adminPassword').value !== $('adminPasswordRepeat').value) {
+    result.className='error'; result.textContent='Die beiden Passwörter stimmen nicht überein.';
+    return;
+  }
+  const payload={
+    hostId:$('hostId').value, hostName:$('hostName').value, protocolVersion:$('protocolVersion').value||'H005',
+    bic:$('bic').value||null, adminUsername:$('adminUsername').value,
+    adminDisplayName:$('adminDisplayName').value||null, adminPassword:$('adminPassword').value,
+    requesterEmail:$('requesterEmail').value
+  };
+  button.disabled=true;
+  try {
+    const response=await fetch('/api/tenant-signup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if (!response.ok) {
+      const body=await response.json().catch(()=>({error:'Unbekannter Fehler'}));
+      result.className='error'; result.textContent='Fehler: '+(body.error||response.status);
+      return;
+    }
+    result.className='success';
+    result.textContent='Anfrage eingegangen und wird geprüft. Sie erhalten eine E-Mail, sobald über die Anfrage entschieden wurde.';
+    e.target.reset(); $('protocolVersion').value='H005';
+  } catch (err) {
+    result.className='error'; result.textContent='Anfrage konnte nicht gesendet werden.';
+  } finally {
+    button.disabled=false;
+  }
+});
+</script>
+</body></html>

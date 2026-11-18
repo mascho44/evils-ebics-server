@@ -1,0 +1,90 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: ${EVILS_ADMIN_SESSION_TIMEOUT:8h}
+      cookie:
+        # The admin session is a bearer credential for the whole tenant's banking data: mark it
+        # Secure (browser only sends it over HTTPS - the deployment's TLS is terminated at the
+        # reverse proxy in front of this container) and SameSite=Lax (blocks the cookie on
+        # cross-site POSTs, which matters because CSRF protection is deliberately disabled for
+        # this API-client-style console). Set EVILS_SESSION_COOKIE_SECURE=false only for a
+        # plain-HTTP local dev instance that a browser must actually log into.
+        secure: ${EVILS_SESSION_COOKIE_SECURE:true}
+        same-site: ${EVILS_SESSION_COOKIE_SAMESITE:lax}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Nur health exponieren, nicht die volle Actuator-Flaeche (env/beans/etc. koennten interne
+        # Details preisgeben) - fuer die Docker-Bereitschaftsanzeige reicht das (siehe Dockerfile
+        # HEALTHCHECK), damit Orchestrierung und Proxy den Zustand erkennen.
+        include: health
+  health:
+    mail:
+      # spring-boot-starter-mail bringt automatisch einen Health-Indicator mit, der den
+      # SMTP-Server anpingt - MailService sendet ohne echten SMTP-Server (Dev/Test-Default) einfach
+      # nicht und loggt nur (siehe spring.mail unten), das darf also nicht den ganzen Container als
+      # unhealthy markieren.
+      enabled: false
+    rabbit:
+      # RabbitMQ-Eventpublishing ist optional und standardmaessig aus (siehe
+      # evils.events.rabbit.enabled unten, RabbitMqEventPublisher) - spring-boot-starter-amqp
+      # konfiguriert trotzdem automatisch eine ConnectionFactory gegen localhost:5672, die es in
+      # dieser Umgebung nie gibt. Ohne dies waere /actuator/health permanent DOWN.
+      enabled: false
+
+spring:
+  application:
+    name: evils-ebics-server
+  datasource:
+    url: ${EVILS_DB_URL:jdbc:postgresql://localhost:5432/evils}
+    username: ${EVILS_DB_USERNAME:evils}
+    password: ${EVILS_DB_PASSWORD:evils}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  mail:
+    # Ohne echten SMTP-Server (z.B. lokal) laesst MailService Sendeversuche einfach fehlschlagen
+    # und protokolliert das nur - kein Absturz von Freigabe/Ablehnung deswegen.
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+
+evils:
+  admin:
+    bootstrap-username: ${EVILS_ADMIN_BOOTSTRAP_USERNAME:admin}
+    bootstrap-password: ${EVILS_ADMIN_BOOTSTRAP_PASSWORD:changeit}
+  mail:
+    absender: ${MAIL_ABSENDER:evils@example.com}
+    # Optional - wenn gesetzt, bekommt diese Adresse eine Mail bei jedem neuen Sandbox-Antrag
+    # (siehe TenantRequestService.submit). Leer (Default) heisst: keine Benachrichtigung, ein
+    # SUPERADMIN muss die "Offene Anfragen"-Liste manuell pruefen.
+    admin-benachrichtigung: ${EVILS_ADMIN_NOTIFICATION_EMAIL:}
+  ebics:
+    host-id: EVILSBANK
+    host-name: EVILS Test Bank
+    protocol-version: H005
+  crypto:
+    master-secret: ${EVILS_CRYPTO_MASTER_SECRET:}
+  statements:
+    daily:
+      enabled: ${EVILS_DAILY_STATEMENTS_ENABLED:true}
+      accounts: ${EVILS_DAILY_STATEMENTS_ACCOUNTS:}
+      cron: ${EVILS_DAILY_STATEMENTS_CRON:0 0 2 * * *}
+      zone: ${EVILS_DAILY_STATEMENTS_ZONE:Europe/Berlin}
+  events:
+    rabbit:
+      enabled: ${EVILS_EVENTS_RABBIT_ENABLED:false}
+      exchange: ${EVILS_EVENTS_RABBIT_EXCHANGE:evils.events}
+      routing-prefix: ${EVILS_EVENTS_RABBIT_ROUTING_PREFIX:payment.}

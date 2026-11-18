@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: evils
+      POSTGRES_USER: evils
+      POSTGRES_PASSWORD: evils
+    ports:
+      - "5432:5432"
+    volumes:
+      - evils-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evils -d evils"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      EVILS_DB_URL: jdbc:postgresql://postgres:5432/evils
+      EVILS_DB_USERNAME: evils
+      EVILS_DB_PASSWORD: evils
+      EVILS_ADMIN_BOOTSTRAP_USERNAME: admin
+      EVILS_ADMIN_BOOTSTRAP_PASSWORD: changeit
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  evils-postgres:

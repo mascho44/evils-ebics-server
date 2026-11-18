@@ -1,0 +1,67 @@
+# Standalone production deployment - deploy with ONLY this file
+# (`docker compose -f docker-compose.prod.yml ...`), never layered on top of the dev
+# docker-compose.yml: Compose MERGES port lists across -f files rather than replacing them, so
+# layering used to publish postgres' dev-only "5432:5432" and app's dev-only "8080:8080" to
+# 0.0.0.0 straight past this file's own (safer) port bindings below - found exposed to the
+# public internet in a security review. Neither Postgres nor the app needs a host port at all:
+# the app reaches Postgres over the "default" network, and Caddy reaches the app over
+# the external proxy network (default name "proxy", override with PROXY_NETWORK) by container name (see Caddyfile) - the 127.0.0.1-only app binding below is
+# purely for operator convenience (SSH tunnel / curl from the host), not for real traffic.
+# Credentials belong in a server-local .env file and must never be committed.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evils
+      POSTGRES_USER: evils
+      POSTGRES_PASSWORD: ${EVILS_DB_PASSWORD}
+    volumes:
+      - evils-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evils -d evils"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      EVILS_DB_URL: jdbc:postgresql://postgres:5432/evils
+      EVILS_DB_USERNAME: evils
+      EVILS_CRYPTO_MASTER_SECRET: ${EVILS_CRYPTO_MASTER_SECRET:?Master secret required}
+      EVILS_DB_PASSWORD: ${EVILS_DB_PASSWORD}
+      EVILS_ADMIN_BOOTSTRAP_USERNAME: ${EVILS_ADMIN_BOOTSTRAP_USERNAME}
+      EVILS_ADMIN_BOOTSTRAP_PASSWORD: ${EVILS_ADMIN_BOOTSTRAP_PASSWORD}
+      # Optional - see application.yml (spring.mail / evils.mail). Without SMTP_HOST/USERNAME
+      # set, MailService's sends simply fail and log a warning (dev/test default is a
+      # non-existent localhost:1025 relay) - no crash. Compose only injects variables explicitly
+      # listed here, not the whole .env file, so a real value in .env alone does nothing without
+      # this passthrough (bit us once already: this exact block was previously only added by
+      # hand directly on the server, never committed, and got silently reverted by the next
+      # tar-based deploy).
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      MAIL_ABSENDER: ${MAIL_ABSENDER:-evils@example.com}
+      EVILS_ADMIN_NOTIFICATION_EMAIL: ${EVILS_ADMIN_NOTIFICATION_EMAIL:-}
+      # Monatsabschluss/AZV-Entgelte automatisch am 1. um 03:30 (FeeClosingScheduler, 0.23.0)
+      EVILS_FEES_MONTHLY_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy
+volumes:
+  evils-postgres:
+networks:
+  default:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebicsRequest xmlns="urn:org:ebics:H005" Version="H005">
+  <header>
+    <static>
+      <HostID>EVILSBANK</HostID>
+      <PartnerID>TEST001</PartnerID>
+      <UserID>USER001</UserID>
+      <OrderDetails>
+        <OrderType>HKD</OrderType>
+        <OrderID>ABC123</OrderID>
+      </OrderDetails>
+    </static>
+  </header>
+</ebicsRequest>

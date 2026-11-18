@@ -1,0 +1,15 @@
+target/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
+.env
+*.pem
+*.key
+*.p12
+*.jks
+._*
+backup-*/
+initial-admin-credentials.txt
+docker-compose.yml.before-*

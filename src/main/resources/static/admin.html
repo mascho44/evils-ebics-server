@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EVILS EBICS Server · Admin</title>
+  <style>
+    :root { color-scheme: dark; --bg:#09111f; --panel:#111d31; --line:#243550; --text:#e8eef9; --muted:#9bb0ce; --accent:#4f9cff; --good:#35c58a; --bad:#ff7b8c; }
+    * { box-sizing:border-box } body { margin:0; font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--text); background:linear-gradient(135deg,#09111f,#101d34); min-height:100vh }
+    header { padding:20px max(24px,calc((100vw - 1360px)/2)); border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center }
+    h1 { font-size:22px; margin:0 } h1 span { color:var(--accent) } .badge { color:#b7f6d4; background:#163d31; padding:5px 10px; border-radius:999px; font-size:13px } .header-actions { display:flex; align-items:center; gap:10px } .logout { background:transparent; color:var(--text); border:1px solid var(--line); padding:7px 10px; font-size:13px }
+    .layout { max-width:1360px; margin:0 auto; padding:24px; display:grid; grid-template-columns:220px 1fr; gap:24px; align-items:start }
+    nav.menu { position:sticky; top:24px; display:flex; flex-direction:column; gap:4px; background:rgba(17,29,49,.93); border:1px solid var(--line); border-radius:14px; padding:10px }
+    nav.menu button { all:unset; cursor:pointer; padding:10px 12px; border-radius:9px; color:var(--muted); font-size:14px; font-weight:600 }
+    nav.menu button:hover { background:#0d1728; color:var(--text) }
+    nav.menu button.active { background:var(--accent); color:#fff }
+    main { min-width:0 }
+    .view { display:none } .view.active { display:block }
+    .grid { display:grid; grid-template-columns:1.1fr .9fr; gap:20px } .wide { grid-column:1/-1 }
+    section { background:rgba(17,29,49,.93); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:0 14px 35px rgba(0,0,0,.16); margin-bottom:20px } h2 { font-size:16px; margin:0 0 16px } p { color:var(--muted); margin:0 0 12px }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px } .card { padding:14px; border-radius:10px; background:#0d1728; border:1px solid var(--line) } .label { display:block; color:var(--muted); font-size:12px } .money { font-size:22px; font-weight:700; margin-top:4px }
+    form { display:grid; grid-template-columns:repeat(2,1fr); gap:12px } label { display:grid; gap:5px; color:var(--muted); font-size:12px } input,select,button.plain { font:inherit; border-radius:8px; border:1px solid var(--line); padding:9px 10px } input,select { color:var(--text); background:#0b1525 } button,.button { cursor:pointer; background:var(--accent); color:white; border:0; font-weight:650; text-decoration:none; padding:9px 12px; border-radius:8px; display:inline-block } button:hover,.button:hover { filter:brightness(1.12) } .full { grid-column:1/-1 } .actions { display:flex; gap:8px; flex-wrap:wrap }
+    table { border-collapse:collapse; width:100%; min-width:800px } th,td { padding:10px 8px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap } th { color:var(--muted); font-size:12px; font-weight:600 } .scroll { overflow:auto } .credit { color:var(--good) } .debit { color:var(--bad) } #message { min-height:22px; margin-top:10px } .error { color:var(--bad) } .success { color:var(--good) }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin:0 0 14px } .toolbar label { min-width:180px; flex:1 } .toolbar label.compact { min-width:auto; flex:0; display:flex; flex-direction:row; align-items:center; gap:7px; padding:9px 0; white-space:nowrap } .toolbar input[type=checkbox] { accent-color:var(--accent) } .status-pill { display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700; background:#163d31; color:#b7f6d4 } .status-pill.rejected { background:#4a202b; color:#ffc0c9 } .subtle { color:var(--muted); font-size:12px }
+    .protocol-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 16px } .protocol-tabs button { background:#0d1728; border:1px solid var(--line); color:var(--muted) } .protocol-tabs button.active { background:var(--accent); border-color:var(--accent); color:#fff }
+    #participantsTable { min-width:0; table-layout:fixed } #participantsTable th:nth-child(1) { width:11% } #participantsTable th:nth-child(2) { width:12% } #participantsTable th:nth-child(3) { width:15% } #participantsTable th:nth-child(4) { width:10% } #participantsTable th:nth-child(5) { width:24% } #participantsTable th:nth-child(6) { width:28% } #participantsTable td { white-space:normal; overflow-wrap:anywhere; vertical-align:top } #participantsTable td:last-child { padding:7px 4px } #participantsTable td:last-child button { padding:6px 7px; margin:2px 0; font-size:12px; white-space:normal }
+    @media(max-width:900px) { .layout { grid-template-columns:1fr } nav.menu { position:static; flex-direction:row; overflow-x:auto } .grid { grid-template-columns:1fr } form { grid-template-columns:1fr } header { padding:20px 18px } }
+    /* Telefon-Breite: Header/Aktionsleiste umbrechen statt abzuschneiden, kompaktere Nav-Buttons
+       mit horizontalem Wischen (Tabs sind hier zu viele fuer eine Zeile), Toolbar-Felder duerfen
+       auf volle Breite umbrechen statt eine erzwungene Mindestbreite zu ueberlaufen. Tabellen
+       bleiben bewusst per .scroll horizontal wischbar statt in gestapelte Karten umgebaut zu werden
+       - das waere fuer ein internes Test-/Admin-Tool ein deutlich groesserer Aufwand ohne
+       entsprechenden Nutzen. */
+    @media(max-width:480px) {
+      body { font-size:14px }
+      header { padding:14px 14px }
+      h1 { font-size:18px }
+      .header-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; gap:8px }
+      .layout { padding:14px; gap:14px }
+      nav.menu { gap:2px; padding:6px }
+      nav.menu button { padding:9px 10px; font-size:13px; white-space:nowrap }
+      section { padding:14px }
+      .toolbar label { min-width:0; flex:1 1 100% }
+      .cards { grid-template-columns:1fr }
+      table { min-width:640px }
+      th,td { padding:8px 6px; font-size:13px }
+      .actions { flex-direction:column; align-items:stretch }
+      .actions button, .actions .button { width:100% }
+    }
+  </style>
+</head>
+<body>
+<header><h1><span>EVILS</span> EBICS Server · Admin</h1><div class="header-actions"><div class="badge">● Server aktiv</div><label class="subtle" id="tenantSelectorLabel" style="display:none;align-items:center;gap:6px;white-space:nowrap">Mandant <select id="tenantSelector"></select></label><label class="subtle" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" id="liveRefresh" checked> Live</label><span class="subtle" id="lastUpdated" aria-live="polite"></span><button type="button" class="logout" id="logoutButton">Abmelden</button></div></header>
+<div class="layout">
+  <nav class="menu" id="menu">
+    <button type="button" data-view="dashboard" class="active">Übersicht</button>
+    <button type="button" data-view="konten">Konten</button>
+    <button type="button" data-view="buchungen">Buchungen</button>
+    <button type="button" data-view="zahlungsverkehr">Zahlungsverkehr</button>
+    <button type="button" data-view="testszenarien">Testszenarien</button>
+    <button type="button" data-view="ebicsBenutzer">EBICS-Benutzer</button>
+    <button type="button" data-view="protokolle">Protokolle</button>
+    <button type="button" data-view="eventOutbox">Backend-Ereignisse</button>
+    <button type="button" data-view="adminKonten">Admin-Konten</button>
+    <button type="button" data-view="mandanten">Mandanten</button>
+  </nav>
+  <main>
+
+  <div class="view active" data-view="dashboard">
+    <div class="grid">
+      <section><h2>Konten</h2><div class="cards" id="accounts"><p>Lade Konten …</p></div></section>
+      <section><h2>EBICS-Parameter</h2><div class="cards" id="ebicsParameters"><p>Lade EBICS-Parameter …</p></div><p style="margin-top:14px">Entwicklungsumgebung: INI markiert den Signaturschlüssel, HIA markiert Authentifizierungs- und Verschlüsselungsschlüssel als initialisiert. HPB liefert die untenstehenden Bankparameter als klar gekennzeichnete Simulator-Nutzdaten. Es findet keine kryptografische Schlüsselprüfung statt; nicht für produktiven Bankverkehr verwenden.</p></section>
+      <section><h2>VEU-Arbeitskorb</h2><p>Noch nicht vollständig freigegebene Zahlungsaufträge.</p><div id="veuWorklist"><p>Lade Zahlungsaufträge …</p></div></section>
+    </div>
+  </div>
+
+  <div class="view" data-view="konten">
+    <section><h2>Kunden</h2><p>Ein Kunde (PartnerID) ist die Firma, der Konten und Teilnehmer zugeordnet werden - vor dem ersten Testkonto/-Teilnehmer eines Partners muss hier erst ein Kunde angelegt werden. <strong>Die PartnerID muss über alle Mandanten hinweg eindeutig sein</strong>, nicht nur innerhalb dieses Mandanten - "TEST001" ist z. B. schon von EVILSBANK belegt.</p><div class="cards" id="customersKonten"><p>Lade Kunden …</p></div>
+      <form id="customerForm" style="margin-top:14px"><label>PartnerID <input id="customerPartnerId" required placeholder="z. B. TEST002"></label><label class="full">Name <input id="customerName" required placeholder="z. B. Muster GmbH"></label><div class="full"><button type="submit">Kunde anlegen</button><div id="customerMessage"></div></div></form>
+    </section>
+    <section><h2>Konten</h2><p>Beim Löschen werden die zugehörigen Ledger-Buchungen entfernt. Daraus erzeugte CAMT-Auszüge enthalten diese Buchungen danach nicht mehr. Konten mit Zahlungsaufträgen sind geschützt.</p><div class="cards" id="accountsKonten"><p>Lade Konten …</p></div>
+      <form id="accountForm" style="margin-top:14px"><label>IBAN <span style="display:flex;gap:6px;align-items:center"><input id="accountIban" required placeholder="z. B. DE53987654321098765432" style="flex:1"><button type="button" id="generateIbanButton" title="Gültige, noch unbenutzte Test-IBAN einfügen">IBAN generieren</button></span></label><label>PartnerID <select id="accountPartnerId" required></select></label><label class="full">Kontoinhaber <input id="accountHolder" required placeholder="z. B. EVILS Demo GmbH"></label><label>Eröffnungsbestand <input id="accountOpeningBalance" type="number" step="0.01" value="0"></label><label>Währung <input id="accountCurrency" required value="EUR" maxlength="3"></label><label class="full">Zugeordneter Teilnehmer (optional) <select id="accountUserId"><option value="">– keiner, teilt sich Konten mit anderen Teilnehmern des Partners –</option></select></label><div class="full"><button type="submit">Testkonto anlegen</button><div id="accountMessage"></div></div></form>
+    </section>
+    <section><h2>CAMT-Auszüge</h2><p>Die Auszüge werden live aus dem Ledger erzeugt und nicht als XML gespeichert. Einzelne Buchungen oder alle Buchungen eines Kontos können im Bereich „Buchungen“ gelöscht werden.</p><label>IBAN <select id="statementIban"></select></label><div class="actions" style="margin-top:12px"><a class="button" id="c52" target="_blank">CAMT.052 öffnen</a><a class="button" id="c53" target="_blank">CAMT.053 öffnen</a><a class="button" id="c54" target="_blank">CAMT.054 öffnen</a></div></section>
+    <section><h2>SWIFT-Nachrichten (Akkreditiv-Demo)</h2><p>Generiert realistische MT700-/MT707-/MT710-/MT760-Demo-Nachrichten für Vorführ-/Testzwecke, im selben schlanken Feld-Dialekt, den corporate-lc-manager einliest. Applicant/Beneficiary werden nach Möglichkeit aus den oben angelegten Kunden gezogen. Jede generierte Nachricht wird gespeichert und kann anschließend von einem EBICS-Client per BTD abgerufen werden (Service <code>TRC</code>, MsgName <code>MT700</code>/<code>MT707</code>/<code>MT710</code>/<code>MT760</code> - kein EBICS-Standard, siehe CHANGELOG).</p><div class="actions" style="margin-bottom:10px"><button id="generateMt700" type="button">MT700 generieren</button><label>LC-Referenz für MT707 <input id="mt707Reference" placeholder="wird nach MT700 automatisch befüllt" style="width:180px"></label><button id="generateMt707" type="button">MT707 generieren</button><label>Issuing Bank für MT710 <input id="mt710IssuingBank" placeholder="z. B. Demo Issuing Bank AG" style="width:180px"></label><button id="generateMt710" type="button">MT710 generieren</button><button id="generateMt760" type="button">MT760 generieren</button><button id="downloadSwiftMessage" type="button" disabled>Herunterladen</button></div><textarea id="swiftMessage" readonly rows="12" style="width:100%;font-family:monospace" placeholder="Noch keine Nachricht generiert."></textarea><div id="swiftMessageError" class="error"></div></section>
+  </div>
+
+  <div class="view" data-view="buchungen">
+    <section><h2>Buchung erfassen</h2><form id="transactionForm">
+      <label>IBAN <select id="iban" required></select></label><label>Art <select id="credit"><option value="true">Gutschrift</option><option value="false">Belastung</option></select></label>
+      <label>Buchungsdatum <input id="bookingDate" type="date" required></label><label>Wertstellungsdatum <input id="valueDate" type="date"></label>
+      <label>Betrag (EUR) <input id="amount" type="number" min="0.01" step="0.01" required></label><label>Gegenpartei <input id="counterpartyName" required></label>
+      <label>Gegenkonto (optional) <input id="counterpartyIban"></label><label>BIC (optional) <input id="counterpartyBic"></label>
+      <label class="full">Verwendungszweck <input id="purpose" required></label><label>End-to-End-ID <input id="endToEndId" value="E2E-ADMIN"></label>
+      <div class="full"><button type="submit">Buchung speichern</button><div id="message"></div></div>
+    </form></section>
+    <section><h2>Ledger</h2><div class="actions" style="margin-bottom:14px"><label>Konto <select id="generateIban" required></select></label><label>Demo-Buchungen <input id="generateCount" type="number" min="1" max="1000" value="100" style="width:100px"></label><button id="generateTransactions" type="button">Buchungen generieren</button><label>Monate <input id="feeMonths" type="number" min="1" max="24" value="6" style="width:70px"></label><label>AZV/Monat <input id="feeAzv" type="number" min="0" max="10" value="2" style="width:70px"></label><button id="generateFeeData" type="button">Gebühren-Testdaten</button><button id="deleteAllTransactions" type="button" style="background:var(--bad)">Auszüge/Buchungen zurücksetzen</button><span id="generateMessage"></span></div><p>Das Zurücksetzen löscht alle Ledger-Buchungen des ausgewählten Kontos. Künftige CAMT-Auszüge enthalten diese Buchungen nicht mehr.</p><div class="scroll"><table><thead><tr><th>Datum</th><th>Konto</th><th>Referenz</th><th>Art</th><th>Betrag</th><th>Gegenpartei</th><th>Verwendungszweck</th><th></th></tr></thead><tbody id="transactions"></tbody></table></div></section>
+  </div>
+
+  <div class="view" data-view="zahlungsverkehr">
+    <section><h2>Zahlungsfreigabe</h2><p>Ein Auftrag wird erst als Belastung gebucht, wenn er entweder von E allein oder gemeinsam durch A und B signiert wurde.</p><form id="paymentOrderForm"><label>Belastungskonto <select id="paymentIban" required></select></label><label>Betrag (EUR) <input id="paymentAmount" type="number" min="0.01" step="0.01" required></label><label>Begünstigter <input id="beneficiaryName" required></label><label>IBAN Begünstigter <input id="beneficiaryIban"></label><label>BIC Begünstigter <input id="beneficiaryBic"></label><label>Ausführung <input id="executionDate" type="date" required></label><label class="full">Verwendungszweck <input id="paymentPurpose" required></label><label>End-to-End-ID <input id="paymentE2E" value="E2E-PAYMENT"></label><div class="full"><button type="submit">Zahlungsauftrag anlegen</button><div id="paymentMessage"></div></div></form><div class="toolbar" style="margin-top:18px"><label>Status <select id="paymentStatusFilter"><option value="all">Alle</option><option value="PENDING_SIGNATURES">Offen</option><option value="SCHEDULED">Terminiert</option><option value="APPROVED">Freigegeben / gebucht</option></select></label></div><div class="scroll"><table><thead><tr><th>ID</th><th>Ausführung</th><th>Begünstigter</th><th>Betrag</th><th>Status</th><th>Signaturen</th><th>Aktion</th></tr></thead><tbody id="paymentOrders"></tbody></table></div></section>
+  </div>
+
+  <div class="view" data-view="testszenarien">
+    <section><h2>Reproduzierbare Testszenarien</h2><p>Nur zusätzliche Testkonten und offene Aufträge. Bestehende Konten, Schlüssel und Buchungen bleiben unverändert. Jedes Szenario kann pro Partner einmal angelegt werden.</p>
+      <form id="scenarioForm"><label>Partner <select id="scenarioPartner" required></select></label><label>Szenario <select id="scenarioType"><option value="EUR_USD">EUR → USD · fester Testkurs</option><option value="INTERNAL_TRANSFER">Interne EUR-Überweisung</option><option value="SCHEDULED">Terminüberweisung für morgen</option></select></label><div class="full"><button id="scenarioSubmit" type="submit">Testdaten anlegen</button><p id="scenarioResult" role="status" style="white-space:pre-wrap;margin-top:12px"></p></div></form>
+      <p>Nach dem Anlegen im Zahlungsverkehr freigeben. Für den Client anschließend Konten aktualisieren. Falsche Berechtigungen, doppelte Uploads und ungültige Sammeldateien werden zusätzlich in der automatisierten Testsuite geprüft.</p>
+    </section>
+  </div>
+  <div class="view" data-view="ebicsBenutzer">
+    <section><h2>EBICS-Benutzerverwaltung</h2><p>Teilnehmer werden persistent gespeichert. Neue Benutzer sind zunächst aktiv; ihre EBICS-Schlüssel müssen anschließend über INI/HIA eingerichtet werden. <strong>Die UserID muss über alle Mandanten hinweg eindeutig sein</strong>, nicht nur innerhalb dieses Mandanten - "USER001"/"USER002" sind z. B. schon von EVILSBANK belegt.</p>
+      <form id="participantForm"><label>UserID <input id="userId" required placeholder="z. B. USER002"></label><label>PartnerID <select id="partnerId" required></select></label><label class="full">Name <input id="participantName" required placeholder="Vollständiger Name"></label><div class="full"><button type="submit">Benutzer anlegen</button><div id="participantMessage"></div></div></form>
+      <div class="scroll" style="margin-top:18px"><table id="participantsTable"><thead><tr><th>UserID</th><th>PartnerID</th><th>Name</th><th>Status</th><th>Schlüssel</th><th>Rechte</th><th>Aktion</th></tr></thead><tbody id="participants"></tbody></table></div>
+    </section>
+    <section><h2>Zahlungsberechtigung</h2><p>EBICS-Unterschriftsklasse für Zahlungsaufträge. Der Standardwert gilt kontoübergreifend; optional kann pro Konto eine abweichende Klasse hinterlegt werden.</p><label>Benutzer <select id="permissionsUser"></select></label><label>Konto <select id="permissionsAccount"><option value="">Standard (alle Konten)</option></select></label><form id="permissionsForm" style="margin-top:14px"><label><input type="radio" name="signatureClass" value="E"> E · Einzelunterschrift: allein zeichnungsberechtigt</label><label><input type="radio" name="signatureClass" value="A"> A · Kollektiv A: nur gemeinsam mit B</label><label><input type="radio" name="signatureClass" value="B"> B · Kollektiv B: nur gemeinsam mit A</label><label><input type="radio" name="signatureClass" value="T"> T · Technisch: keine Zahlungsfreigabe</label><div class="full"><button type="submit">Zahlungsberechtigung speichern</button><div id="permissionMessage"></div></div></form>
+      <div class="scroll" style="margin-top:18px"><table><thead><tr><th>Konto</th><th>Klasse</th><th>Aktion</th></tr></thead><tbody id="permissionOverrides"></tbody></table></div>
+    </section>
+  </div>
+
+  <div class="view" data-view="protokolle">
+    <div class="protocol-tabs" role="tablist"><button type="button" class="active" data-logtab="ebicsLog">EBICS-Anfragen</button><button type="button" data-logtab="keyLog">Schlüsselinitialisierungen</button><button type="button" data-logtab="hacLog">HAC-Bestätigungen</button></div>
+    <section id="ebicsLog" data-logpanel><h2>EBICS-Protokoll</h2><p>Die letzten 500 verarbeiteten EBICS-Anfragen, chronologisch absteigend. Erfolgreiche und abgelehnte Anfragen lassen sich filtern; XML-Nutzdaten werden nicht gespeichert.</p><div class="cards" id="protocolStats"><p>Lade Übersicht …</p></div><div class="toolbar" style="margin-top:16px"><label>Suche <input id="protocolLogSearch" placeholder="Auftrag, Partner, Benutzer oder Referenz"></label><label>Ergebnis <select id="protocolLogOutcome"><option value="all">Alle</option><option value="accepted">Nur erfolgreich</option><option value="rejected">Nur abgelehnt</option></select></label><button type="button" id="protocolLogRefresh">Aktualisieren</button></div><div class="scroll"><table><thead><tr><th>Zeitpunkt</th><th>Host / Version</th><th>Auftrag</th><th>Partner / Benutzer</th><th>Referenz</th><th>Ergebnis</th><th>Details</th></tr></thead><tbody id="protocolLogs"></tbody></table></div><div class="actions" style="margin-top:10px"><button type="button" id="protocolLogsMore" style="display:none">Mehr anzeigen</button><span class="subtle" id="protocolLogCount"></span></div></section>
+    <section id="keyLog" data-logpanel style="display:none"><h2>Schlüsselinitialisierungen</h2><p>Nachrichten der Typen INI, HIA und HPB werden dauerhaft protokolliert.</p><div class="scroll"><table><thead><tr><th>Zeitpunkt</th><th>Typ</th><th>Partner</th><th>Benutzer</th><th>Version</th></tr></thead><tbody id="keyInitializations"></tbody></table></div><div class="actions" style="margin-top:10px"><button type="button" id="keyInitializationsMore" style="display:none">Mehr anzeigen</button></div></section>
+    <section id="hacLog" data-logpanel style="display:none"><h2>HAC-Bestätigungen</h2><p>Hier erscheinen eingegangene EBICS Customer Acknowledgements.</p><div class="scroll"><table><thead><tr><th>Zeitpunkt</th><th>Partner</th><th>Benutzer</th><th>Referenz</th><th>Version</th></tr></thead><tbody id="hacAcknowledgements"></tbody></table></div><div class="actions" style="margin-top:10px"><button type="button" id="hacAcknowledgementsMore" style="display:none">Mehr anzeigen</button></div></section>
+  </div>
+
+  <div class="view" data-view="eventOutbox">
+    <section><h2>Backend-Ereignisse</h2><p>Benachrichtigungen an das Backend. Erneutes Einplanen führt keine Zahlung erneut aus. Anzeige auf 100 Ereignisse je Status begrenzt.</p>
+    <p id="outboxSummary" aria-live="polite"></p><div class="toolbar"><label>Status <select id="outboxFilter"><option value="DEAD">Fehlgeschlagen (DEAD)</option><option value="PENDING">Ausstehend (PENDING)</option><option value="DELIVERED">Zugestellt (DELIVERED)</option></select></label><button type="button" id="outboxRefresh">Aktualisieren</button></div>
+    <p id="outboxMessage" role="status"></p><div class="scroll"><table><thead><tr><th>Ereignis-ID</th><th>Status</th><th>Versuche</th><th>Nächster Versuch</th><th>Zugestellt</th><th>Letzter Fehler</th><th>Aktion</th></tr></thead><tbody id="outboxRows"></tbody></table></div></section>
+  </div>
+  <div class="view" data-view="adminKonten">
+    <section><h2>Admin-Konten</h2><p>Diese Konten steuern den Zugriff auf diese Oberfläche und die Admin-API.</p><form id="adminUserForm"><label>Benutzername <input id="adminUsername" required></label><label>Anzeigename <input id="adminDisplayName" required></label><label>Passwort <input id="adminPassword" type="password" minlength="8" required></label><label>Rolle <select id="adminRole"><option value="ADMIN">Administrator</option><option value="OPERATOR">Operator</option></select></label><div class="full"><button type="submit">Admin-Konto anlegen</button><div id="adminUserMessage"></div></div></form><div class="scroll" style="margin-top:18px"><table><thead><tr><th>Benutzer</th><th>Name</th><th>Rolle</th><th>Status</th><th>Aktion</th></tr></thead><tbody id="adminUsers"></tbody></table></div></section>
+    <section id="totpSection" style="display:none"><h2>Zwei-Faktor-Authentifizierung</h2><p>Nur für Systemadministratoren (SUPERADMIN) - schützt dein eigenes Login zusätzlich mit einem Code aus einer Authenticator-App (z.B. Google Authenticator, Authy).</p><div id="totpContent"></div></section>
+  </div>
+
+  <div class="view" data-view="mandanten">
+    <section><h2>Offene Anfragen</h2><p>Selbst eingereichte Anfragen über das öffentliche <a href="/signup.html" target="_blank" style="color:var(--accent)">Sandbox-Formular</a>. Genehmigen legt den Mandanten und den im Formular gewählten Admin-Login sofort an; der Anfragende wird per E-Mail über die Freigabe/Ablehnung benachrichtigt.</p>
+      <div id="tenantRequestsMessage"></div>
+      <div class="scroll" style="margin-top:14px"><table><thead><tr><th>Zeitpunkt</th><th>Host-ID</th><th>Bankname</th><th>Admin-Benutzername</th><th>E-Mail</th><th>Aktion</th></tr></thead><tbody id="tenantRequests"></tbody></table></div>
+    </section>
+    <section><h2>Mandanten</h2><p>Jeder Mandant ist eine eigenständige, isolierte Testbank mit eigenen Kunden/Teilnehmern/Konten und eigenen Admin-Logins. Nur für Systemadministratoren (SUPERADMIN) sichtbar und verwaltbar.</p>
+      <div id="tenantsMessage"></div>
+      <div class="scroll" style="margin-top:14px"><table><thead><tr><th>Host-ID</th><th>Bankname</th><th>Protokoll</th><th>BIC</th><th>Aktion</th></tr></thead><tbody id="tenants"></tbody></table></div>
+    </section>
+    <section><h2>Neuen Mandanten anlegen</h2><p>Die Host-ID identifiziert den Mandanten eindeutig gegenüber EBICS-Clients (analog zur Bankleitzahl). Optional kann direkt der erste Admin-Login für den neuen Mandanten angelegt werden.</p>
+      <form id="tenantForm"><label>Host-ID <input id="tenantHostId" required placeholder="z. B. TESTBANK2"></label><label>Bankname <input id="tenantHostName" required placeholder="z. B. Testbank 2"></label><label>Protokollversion <input id="tenantProtocolVersion" value="H005"></label><label>BIC (optional) <input id="tenantBic" placeholder="z. B. TEST2DEFFXXX"></label><label>Erster Admin-Benutzername (optional) <input id="tenantAdminUsername"></label><label>Anzeigename <input id="tenantAdminDisplayName"></label><label>Passwort <input id="tenantAdminPassword" type="password" minlength="8"></label><div class="full"><button type="submit">Mandant anlegen</button><div id="tenantCreateMessage"></div></div></form>
+    </section>
+  </div>
+
+  </main>
+</div>
+<script>
+const $=id=>document.getElementById(id), money=(n,ccy='EUR')=>new Intl.NumberFormat('de-DE',{style:'currency',currency:ccy}).format(n);
+const pagers={};
+let protocolLogData=[];
+// The API serializes LocalDateTime values written by the UTC server without an offset.
+// Treat these values as UTC and always display them in the bank's local time zone.
+const utcDate=value=>new Date(String(value).endsWith('Z')?value:String(value)+'Z');
+const logTime=value=>utcDate(value).toLocaleString('de-DE',{timeZone:'Europe/Berlin'});
+/** Renders the first N rows of a long, unbounded table (protocol/key-init/HAC logs can run into
+ * the hundreds) with a "Mehr anzeigen" button to reveal more in chunks, instead of dumping every
+ * row into the DOM at once. State (how many rows are shown) persists across reload() calls until
+ * the page is refreshed. */
+function paged(containerId, moreBtnId, rows, rowFn, emptyRow, pageSize=25){
+  const pager=pagers[containerId] ??= {shown:pageSize};
+  const render=()=>{
+    $(containerId).innerHTML=rows.slice(0,pager.shown).map(rowFn).join('')||emptyRow;
+    $(moreBtnId).style.display = pager.shown<rows.length ? '' : 'none';
+    $(moreBtnId).textContent = `Mehr anzeigen (${rows.length-pager.shown} weitere)`;
+  };
+  $(moreBtnId).onclick=()=>{ pager.shown+=pageSize; render(); };
+  render();
+}
+function dates(){const d=new Date().toISOString().slice(0,10); $('bookingDate').value=d; $('valueDate').value=d;}
+function protocolOutcome(log){return String(log.outcome||'').toUpperCase().startsWith('REJECTED')?'rejected':'accepted';}
+function protocolDetail(log){
+ const outcome=String(log.outcome||'');
+ const marker=outcome.indexOf(':');
+ if(marker>=0)return outcome.slice(marker+1).trim();
+ const order=String(log.orderType||'').toUpperCase();
+ return ({BTD:'Abgerufen: Kontoauszug',BTU:'Gesendet: SEPA-Zahlungsauftrag',HPB:'Abgerufen: Bankschlüssel',HPD:'Abgerufen: Bankparameter',HKD:'Abgerufen: Teilnehmerparameter',HTD:'Abgerufen: Teilnehmer- und Kontoberechtigungen',INI:'Gesendet: Signaturschlüssel',HIA:'Gesendet: Authentifizierungs- und Verschlüsselungsschlüssel',HAC:'Gesendet: Auftragsbestätigung'})[order]||'Verarbeitet';
+}
+function renderProtocolLogs(){
+ const query=$('protocolLogSearch').value.trim().toLowerCase(), outcome=$('protocolLogOutcome').value;
+ const filtered=protocolLogData.filter(log=>{
+   const matchesOutcome=outcome==='all'||protocolOutcome(log)===outcome;
+   const searchable=[log.orderType,log.partnerId,log.userId,log.orderId,log.outcome].filter(Boolean).join(' ').toLowerCase();
+   return matchesOutcome&&(!query||searchable.includes(query));
+ });
+ const accepted=protocolLogData.filter(log=>protocolOutcome(log)==='accepted').length, rejected=protocolLogData.length-accepted;
+ $('protocolStats').innerHTML=`<div class="card"><span class="label">Einträge</span><div class="money">${protocolLogData.length}</div></div><div class="card"><span class="label">Erfolgreich</span><div class="money credit">${accepted}</div></div><div class="card"><span class="label">Abgelehnt</span><div class="money ${rejected?'debit':''}">${rejected}</div></div>`;
+ $('protocolLogCount').textContent=`${filtered.length} von ${protocolLogData.length} Einträgen`;
+ paged('protocolLogs','protocolLogsMore',filtered,l=>{const rejected=protocolOutcome(l)==='rejected', detail=protocolDetail(l);return `<tr><td>${logTime(l.receivedAt)}</td><td>${l.hostId||'—'}<br><span class="subtle">${l.protocolVersion||''}</span></td><td>${l.orderType||'—'}<br><span class="subtle">${detail}</span></td><td>${l.partnerId||''}<br><span class="subtle">${l.userId||''}</span></td><td>${l.orderId||'—'}</td><td><span class="status-pill ${rejected?'rejected':''}">${rejected?'Abgelehnt':'Erfolgreich'}</span></td><td><button type="button" onclick="showProtocolLogDetails(${l.id})">Details</button></td></tr>`;},'<tr><td colspan="7">Keine passenden EBICS-Anfragen.</td></tr>');
+}
+/** Zeigt einen einzelnen Protokolleintrag mit allen Feldern gesammelt in einem Dialog - die Tabelle
+ * selbst nutzt white-space:nowrap (siehe Stylesheet), ein langer Ergebnistext (z.B. eine
+ * Ablehnungsbegruendung) ist dort nur per Horizontal-Scroll lesbar statt an einer Stelle beisammen.
+ * Elemente werden bewusst erst BEIM Aufruf per $() nachgeschlagen statt einmalig beim Skript-Start
+ * (wie z.B. paymentDialog in payment-details.js) - das <dialog>-Element steht im HTML erst NACH
+ * diesem Inline-<script>-Block, ein Top-Level-Zugriff hier waere zum Parse-Zeitpunkt noch null. */
+function showProtocolLogDetails(id){
+ const log=protocolLogData.find(l=>l.id===id);
+ if(!log)return;
+ const dialog=$('protocolLogDialog');
+ $('closeProtocolLogDialog').onclick=()=>dialog.close();
+ const content=$('protocolLogDialogContent');
+ content.replaceChildren();
+ const data=document.createElement('dl');
+ const rejected=protocolOutcome(log)==='rejected';
+ const fields={'Zeitpunkt':logTime(log.receivedAt),'Host-ID':log.hostId,'Protokollversion':log.protocolVersion,'PartnerID':log.partnerId,'UserID':log.userId,'Auftragstyp':log.orderType,'Referenz':log.orderId,'Ergebnis':rejected?'Abgelehnt':'Erfolgreich','Details':log.outcome};
+ for(const [label,value] of Object.entries(fields)){
+   const term=document.createElement('dt');term.textContent=label;term.className='subtle';
+   const description=document.createElement('dd');description.textContent=value??'—';description.style.margin='0 0 10px';description.style.overflowWrap='anywhere';
+   data.append(term,description);
+ }
+ content.append(data);
+ if(!dialog.open)dialog.showModal();
+}
+function initMenu(){
+  const buttons=[...document.querySelectorAll('nav.menu button')];
+  const views=[...document.querySelectorAll('.view')];
+  function activate(name){
+    buttons.forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+    views.forEach(v=>v.classList.toggle('active',v.dataset.view===name));
+    if(location.hash.slice(1)!==name) history.replaceState(null,'','#'+name);
+  }
+  buttons.forEach(b=>b.addEventListener('click',()=>{activate(b.dataset.view); if(b.dataset.view==='mandanten') loadTenants();}));
+  const initial=location.hash.slice(1);
+  if(buttons.some(b=>b.dataset.view===initial)){ activate(initial); if(initial==='mandanten') loadTenants(); }
+}
+function initProtocolTabs(){
+  const tabs=[...document.querySelectorAll('[data-logtab]')], panels=[...document.querySelectorAll('[data-logpanel]')];
+  tabs.forEach(tab=>tab.addEventListener('click',()=>{tabs.forEach(t=>t.classList.toggle('active',t===tab));panels.forEach(p=>p.style.display=p.id===tab.dataset.logtab?'':'none');}));
+}
+function logout(){
+  // Spring Security invalidates the authenticated browser session on POST /logout.
+  // A native form deliberately navigates away afterwards, so no protected UI data remains visible.
+  const form=document.createElement('form');
+  form.method='post';
+  form.action='/logout';
+  document.body.append(form);
+  form.submit();
+}
+async function apiJson(url,options){const response=await fetch(url,options);if(response.status===401||response.redirected||new URL(response.url).pathname==='/login.html'){window.location.replace('/login.html');throw new Error('Anmeldung abgelaufen');}if(!response.ok)throw new Error(`API-Fehler ${response.status}`);return response.json();}
+// SUPERADMIN-Rueckfrage (siehe TenantResolver.effectiveHostId): ohne X-Tenant-Host-Id-Header
+// faellt der Server nur dann noch automatisch auf "das eine Konto" zurueck, wenn genau EIN
+// Mandant existiert - sobald ein zweiter Mandant angelegt wird, antwortet JEDER admin/api-Aufruf
+// eines SUPERADMIN mit 400 Bad Request, ohne dass die Seite das bisher irgendwie sichtbar machte
+// (nur die generische "Admin-API nicht erreichbar."-Meldung). Statt jeden einzelnen fetch()-Aufruf
+// in dieser Datei anzupassen, wird hier EINMALIG global gepatcht: jeder Aufruf unter /admin/api
+// bekommt den Header automatisch mit, sobald ein Mandant ausgewaehlt ist. Ein normaler (nicht-
+// SUPERADMIN) Admin ist bereits serverseitig ueber TenantContext auf seinen Mandanten
+// festgelegt und bemerkt davon nichts.
+let currentTenantHostId = localStorage.getItem('evilsAdminTenant') || '';
+let isSuperadmin = false;
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  const url = typeof input === 'string' ? input : input.url;
+  if (currentTenantHostId && url.startsWith('/admin/api')) {
+    init = init ? {...init} : {};
+    const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined) || {});
+    if (!headers.has('X-Tenant-Host-Id')) headers.set('X-Tenant-Host-Id', currentTenantHostId);
+    init.headers = headers;
+  }
+  return _nativeFetch(input, init);
+};
+/** Laedt die Mandantenliste (falls der Aufrufer SUPERADMIN ist - sonst liefert /admin/api/tenants
+ * 403) und zeigt bei mehr als einem Mandanten den Selector im Header an. Erkennt dabei nebenbei,
+ * ob der Aufrufer ueberhaupt SUPERADMIN ist (fuer initTotpSection - nur die koennen 2FA fuer sich
+ * selbst einrichten), unabhaengig von der Mandantenanzahl. Muss VOR dem ersten load()
+ * abgeschlossen sein. */
+async function initTenantSelector(){
+  let response, tenants;
+  try { response = await _nativeFetch('/admin/api/tenants'); tenants = response.ok ? await response.json() : []; } catch { response = null; tenants = []; }
+  isSuperadmin = !!response && response.ok;
+  initTotpSection();
+  if (!Array.isArray(tenants) || tenants.length <= 1) return;
+  if (!tenants.some(t=>t.hostId===currentTenantHostId)) currentTenantHostId = tenants[0].hostId;
+  localStorage.setItem('evilsAdminTenant', currentTenantHostId);
+  const sel = $('tenantSelector');
+  sel.innerHTML = tenants.map(t=>`<option value="${t.hostId}">${t.hostName} (${t.hostId})</option>`).join('');
+  sel.value = currentTenantHostId;
+  sel.addEventListener('change', () => { currentTenantHostId = sel.value; localStorage.setItem('evilsAdminTenant', currentTenantHostId); load().catch(e=>{$('accounts').innerHTML='<p class="error">Admin-API nicht erreichbar.</p>';console.error(e)}); });
+  $('tenantSelectorLabel').style.display = 'flex';
+}
+/** Zeigt/verbirgt die 2FA-Karte fuer den aktuell eingeloggten Nutzer (nur SUPERADMIN, siehe
+ * isSuperadmin) und rendert entweder den Einrichten- oder den Deaktivieren-Zustand - der Server
+ * selbst kennt hier keinen Zwischenzustand ausser "totpSecret gesetzt, aber noch nicht bestaetigt"
+ * (isTotpEnabled=false trotz laufender Einrichtung), den wir bewusst nicht extra anzeigen: ein
+ * erneuter Klick auf "Einrichten" erzeugt einfach ein frisches Secret. */
+async function initTotpSection(){
+  $('totpSection').style.display = isSuperadmin ? 'block' : 'none';
+  if (!isSuperadmin) return;
+  let me;
+  try { me = await _nativeFetch('/admin/api/admin-users/me').then(r=>r.ok?r.json():null); } catch { me = null; }
+  if (me && me.totpEnabled) renderTotpEnabled(); else renderTotpSetupPrompt();
+}
+function renderTotpSetupPrompt(){
+  $('totpContent').innerHTML = `<button type="button" id="totpSetupStart">2FA einrichten</button> <span class="subtle" id="totpDisabledHint">Aktuell nicht aktiviert.</span>`;
+  $('totpSetupStart').addEventListener('click', beginTotpSetup);
+}
+async function beginTotpSetup(){
+  const setup = await fetch('/admin/api/admin-users/me/2fa/setup', {method:'POST'}).then(r=>{if(!r.ok) throw new Error('Einrichtung fehlgeschlagen'); return r.json();});
+  $('totpContent').innerHTML = `
+    <p>1. QR-Code in der Authenticator-App abfotografieren (oder den Code darunter manuell eingeben):</p>
+    <div id="totpQr" style="background:#fff;padding:12px;border-radius:8px;display:inline-block"></div>
+    <p class="card" style="font-family:monospace;font-size:16px;letter-spacing:2px;display:inline-block;margin-top:12px">${setup.secret}</p>
+    <p>2. Den von der App angezeigten 6-stelligen Code hier eingeben, um die Einrichtung zu bestätigen:</p>
+    <form id="totpConfirmForm" style="max-width:260px"><label>Code <input id="totpConfirmCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label><div class="full"><button type="submit">Bestätigen &amp; aktivieren</button></div></form>
+    <p class="error" id="totpConfirmError" style="display:none"></p>`;
+  // Rein clientseitig gerendert (vendored qrcode-generator.js, kein CDN/keine externe Anfrage) -
+  // der TOTP-Secret/die otpauth-URI verlaesst damit nie den Browser, auch nicht an einen
+  // QR-Bildgenerator-Drittanbieter (haette das Secret ueber die URL an dessen Server geschickt).
+  const qr = qrcode(0, 'M');
+  qr.addData(setup.otpauthUri);
+  qr.make();
+  $('totpQr').innerHTML = qr.createSvgTag(6, 0);
+  $('totpConfirmForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = $('totpConfirmError');
+    errorEl.style.display = 'none';
+    const r = await fetch('/admin/api/admin-users/me/2fa/enable', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: $('totpConfirmCode').value})});
+    if (!r.ok) { errorEl.textContent = await r.text() || 'Code ungültig.'; errorEl.style.display = 'block'; return; }
+    renderTotpEnabled();
+  });
+}
+function renderTotpEnabled(){
+  $('totpContent').innerHTML = `<p class="subtle" style="color:var(--good)">✓ 2FA ist für dein Konto aktiviert.</p><button type="button" id="totpDisable" style="background:var(--bad)">2FA deaktivieren</button>`;
+  $('totpDisable').addEventListener('click', async () => {
+    if (!confirm('2FA wirklich deaktivieren? Danach reicht wieder nur das Passwort zum Anmelden.')) return;
+    const r = await fetch('/admin/api/admin-users/me/2fa/disable', {method:'POST'});
+    if (!r.ok) { alert('Deaktivieren fehlgeschlagen.'); return; }
+    renderTotpSetupPrompt();
+  });
+}
+let ledgerTransactions=[];
+let allAccounts=[];
+function renderLedger(){const iban=$('generateIban').value;const txs=ledgerTransactions.filter(t=>!iban||t.iban===iban);$('transactions').innerHTML=txs.map(t=>`<tr><td>${t.bookingDate}</td><td>${t.iban}</td><td>${t.transactionId}</td><td class="${t.credit?'credit':'debit'}">${t.credit?'Gutschrift':'Belastung'}</td><td class="${t.credit?'credit':'debit'}">${money(t.amount,t.currency)}</td><td>${t.counterpartyName||''}</td><td>${t.purpose||''}</td><td><button onclick="deleteTransaction('${t.transactionId}')" style="background:var(--bad);padding:5px 8px">Löschen</button></td></tr>`).join('')||'<tr><td colspan="8">Keine Buchungen für das ausgewählte Konto vorhanden.</td></tr>';}
+async function load(){const [accounts,txs,participants,customers,bank,paymentOrders,adminUsers,hacAcknowledgements,keyInitializations,protocolLogs]=await Promise.all([apiJson('/admin/api/accounts'),apiJson('/admin/api/transactions'),apiJson('/admin/api/participants'),apiJson('/admin/api/customers'),apiJson('/admin/api/bank'),apiJson('/admin/api/payment-orders'),apiJson('/admin/api/admin-users'),apiJson('/admin/api/hac-acknowledgements'),apiJson('/admin/api/key-initializations'),apiJson('/admin/api/protocol-logs')]);
+ const accountCards=accounts.map(a=>`<div class="card"><span class="label">${a.iban}${a.userId?' · '+a.userId:''}</span><div class="money">${money(a.openingBalance,a.currency)}</div><span class="label">Eröffnungsbestand · ${a.openingBalanceDate}</span></div>`).join('');
+ $('accounts').innerHTML=accountCards; $('accountsKonten').innerHTML=accounts.map(a=>`<div class="card"><span class="label">${a.iban}${a.userId?' · '+a.userId:''}</span><div class="money">${money(a.openingBalance,a.currency)}</div><span class="label">Eröffnungsbestand · ${a.openingBalanceDate}</span><div class="actions" style="margin-top:12px"><button type="button" onclick="deleteAccount('${a.iban}')" style="background:var(--bad)">Konto löschen</button></div></div>`).join('');
+ $('customersKonten').innerHTML=customers.map(c=>`<div class="card"><span class="label">${c.partnerId}</span><div class="money" style="font-size:1.1rem">${c.name}</div><span class="label ${c.active?'credit':'debit'}">${c.active?'Aktiv':'Inaktiv'}</span></div>`).join('')||'<p class="subtle">Noch keine Kunden vorhanden.</p>';
+ $('ebicsParameters').innerHTML=`<div class="card"><span class="label">Host-ID</span><div class="money">${bank.hostId}</div></div><div class="card"><span class="label">Bank / BIC</span><div class="money">${bank.hostName}</div><span class="label">${bank.bic}</span></div><div class="card"><span class="label">Protokollversion</span><div class="money">${bank.protocolVersion}</div></div>`;
+ const veuOrders=paymentOrders.filter(o=>o.status==='PENDING_SIGNATURES'); $('veuWorklist').innerHTML=veuOrders.length?veuOrders.map(o=>`<div class="card"><span class="label">Auftrag #${o.id} · ${o.executionDate}</span><div class="money">${money(o.amount,o.currency)}</div><span class="label">${o.beneficiaryName} · wartet auf weitere Signatur</span></div>`).join(''):'<p class="subtle">Keine offenen VEU-Freigaben.</p>';
+ $('adminUsers').innerHTML=adminUsers.map(u=>`<tr><td>${u.username}</td><td>${u.displayName}</td><td>${u.role}</td><td class="${u.active?'credit':'debit'}">${u.active?'Aktiv':'Inaktiv'}</td><td><button onclick="changeAdminPassword('${u.username}')">Passwort ändern</button> <button onclick="toggleAdmin('${u.username}',${!u.active})">${u.active?'Deaktivieren':'Aktivieren'}</button> <button onclick="deleteAdmin('${u.username}')" style="background:var(--bad)">Löschen</button></td></tr>`).join('');
+ paged('hacAcknowledgements','hacAcknowledgementsMore',hacAcknowledgements,h=>`<tr><td>${logTime(h.receivedAt)}</td><td>${h.partnerId||''}</td><td>${h.userId||''}</td><td>${h.referencedOrderId||'—'}</td><td>${h.protocolVersion||''}</td></tr>`,'<tr><td colspan="5">Noch keine HAC-Bestätigungen.</td></tr>');
+ paged('keyInitializations','keyInitializationsMore',keyInitializations,k=>`<tr><td>${logTime(k.receivedAt)}</td><td>${k.orderType}</td><td>${k.partnerId||''}</td><td>${k.userId||''}</td><td>${k.protocolVersion||''}</td></tr>`,'<tr><td colspan="5">Noch keine Schlüsselinitialisierung.</td></tr>');
+ protocolLogData=protocolLogs.slice().sort((a,b)=>utcDate(b.receivedAt)-utcDate(a.receivedAt)); renderProtocolLogs(); $('lastUpdated').textContent='Aktualisiert '+new Date().toLocaleTimeString('de-DE',{timeZone:'Europe/Berlin'});
+ allAccounts=accounts; const opts=accounts.map(a=>`<option value="${a.iban}">${a.iban} · ${a.accountHolder}</option>`).join(''); $('iban').innerHTML=opts; $('statementIban').innerHTML=opts; $('paymentIban').innerHTML=opts; $('generateIban').innerHTML=opts;
+ const permissionsAccountSelected=$('permissionsAccount').value; $('permissionsAccount').innerHTML='<option value="">Standard (alle Konten)</option>'+opts; if([...$('permissionsAccount').options].some(o=>o.value===permissionsAccountSelected)) $('permissionsAccount').value=permissionsAccountSelected;
+ $('partnerId').innerHTML=customers.map(c=>`<option value="${c.partnerId}">${c.partnerId} · ${c.name}</option>`).join('');
+ $('accountPartnerId').innerHTML=customers.map(c=>`<option value="${c.partnerId}">${c.partnerId} · ${c.name}</option>`).join('');
+ $('accountUserId').innerHTML='<option value="">– keiner, teilt sich Konten mit anderen Teilnehmern des Partners –</option>'+participants.map(p=>`<option value="${p.userId}">${p.userId} · ${p.name}</option>`).join('');
+ $('participants').innerHTML=participants.map(p=>`<tr><td>${p.userId}</td><td>${p.partnerId}</td><td>${p.name}</td><td class="${p.active?'credit':'debit'}">${p.active?'Aktiv':'Inaktiv'}</td><td>INI: ${p.signatureKeyStatus}${p.signatureKeyStatus==='INITIALIZED'?` (<span class="${p.signatureKeyReleased?'credit':'debit'}">${p.signatureKeyReleased?'freigegeben':'nicht freigegeben'}</span>)`:''}<br>HIA: ${p.authenticationKeyStatus} / ${p.encryptionKeyStatus}</td><td>${permissionButton(p,'upload','Upload',p.uploadAllowed)} ${permissionButton(p,'download','Download',p.downloadAllowed)} ${permissionButton(p,'lcDownload','MT7xx',p.lcDownloadAllowed)}</td><td><button onclick="toggleUser('${p.userId}',${!p.active})">${p.active?'Deaktivieren':'Aktivieren'}</button> <button onclick="resetParticipant('${p.userId}')">Zurücksetzen</button>${p.signatureKeyStatus==='INITIALIZED'&&!p.signatureKeyReleased?` <button onclick="releaseSignatureKey('${p.userId}')">INI-Brief prüfen &amp; freigeben</button>`:''} <button onclick="deleteParticipant('${p.userId}')" style="background:var(--bad)">Löschen</button></td></tr>`).join('')||'<tr><td colspan="7">Keine Benutzer vorhanden.</td></tr>';
+ const selected=$('permissionsUser').value; $('permissionsUser').innerHTML=participants.map(p=>`<option value="${p.userId}">${p.userId} · ${p.name}</option>`).join(''); if([...$('permissionsUser').options].some(o=>o.value===selected)) $('permissionsUser').value=selected; await loadPermissions();
+ const signerOptions=participants.filter(p=>p.active).map(p=>`<option value="${p.userId}">${p.userId}</option>`).join(''); const visibleOrders=paymentOrders.filter(o=>$('paymentStatusFilter').value==='all'||o.status===$('paymentStatusFilter').value); const rows=await Promise.all(visibleOrders.map(async o=>{const signatures=await apiJson(`/admin/api/payment-orders/${o.id}/signatures`);const signed=signatures.map(s=>`${s.userId} (${s.signatureClass})`).join(', ')||'—';const booked=o.status==='APPROVED',scheduled=o.status==='SCHEDULED',psr=booked?(o.statusReportRetrievedAt?`pain.002 abgerufen · ${logTime(o.statusReportRetrievedAt)}`:'pain.002 bereit'):'—',label=booked?`Gebucht · ${o.ledgerTransactionId}<br><span class="subtle">${psr}</span>`:scheduled?'Terminiert · automatische Buchung am Ausführungstag':'Wartet auf Freigabe';return `<tr><td>${o.id}</td><td>${o.executionDate}</td><td>${o.beneficiaryName}</td><td>${money(o.amount,o.currency)}</td><td class="${booked?'credit':scheduled?'':'debit'}">${label}</td><td>${signed}</td><td><button onclick="showPaymentDetails(${o.id})">Details</button> ${(booked||scheduled)?'':`<select id="signer-${o.id}">${signerOptions}</select> <button onclick="signPayment(${o.id})">Signieren</button>`}</td></tr>`;})); $('paymentOrders').innerHTML=rows.join('')||'<tr><td colspan="7">Keine Zahlungsaufträge vorhanden.</td></tr>';
+ ledgerTransactions=txs; renderLedger(); links(); }
+function links(){const iban=$('statementIban').value, to=new Date().toISOString().slice(0,10), from=new Date(Date.now()-30*864e5).toISOString().slice(0,10), q=`?iban=${encodeURIComponent(iban)}&from=${from}&to=${to}`; $('c52').href='/admin/api/statements/camt052'+q; $('c53').href='/admin/api/statements/camt053'+q; $('c54').href='/admin/api/statements/camt054'+q;}
+function permissionButton(p,kind,label,allowed){return `<button onclick="setPermission('${p.userId}','${kind}',${!allowed})" title="${label}-Berechtigung ${allowed?'entziehen':'erteilen'}" style="background:${allowed?'var(--good,#1f7a4d)':'var(--bad)'}">${label}: ${allowed?'erlaubt':'gesperrt'}</button>`}
+async function setPermission(userId,kind,value){const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/permissions?${kind}=${value}`,{method:'PATCH'});if(!r.ok){alert('Berechtigung konnte nicht geändert werden.');return}await load();}
+async function toggleUser(userId,value){const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/active?value=${value}`,{method:'PATCH'});if(!r.ok){alert('Status konnte nicht geändert werden.');return}await load();}
+async function resetParticipant(userId){if(!confirm(`Schlüssel/Status von ${userId} wirklich zurücksetzen? Der Teilnehmer muss INI/HIA danach neu durchlaufen.`))return;const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/reset`,{method:'POST'});if(!r.ok){alert('Zurücksetzen fehlgeschlagen: '+await r.text());return}await load();}
+async function releaseSignatureKey(userId){
+  const keys=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/keys`).then(r=>r.json());
+  const sig=keys.find(k=>k.keyType==='SIGNATURE');
+  const fingerprint=sig?sig.fingerprintSha256.match(/.{1,2}/g).join(' ').toUpperCase():'(kein Signaturschlüssel gefunden)';
+  if(!confirm(`SHA-256-Fingerprint des Signaturschlüssels von ${userId}:\n\n${fingerprint}\n\nStimmt dieser mit dem physisch unterschriebenen INI-Brief überein? Nur dann bestätigen.`))return;
+  const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/signature-release`,{method:'POST'});
+  if(!r.ok){alert('Freigabe fehlgeschlagen: '+await r.text());return}
+  await load();
+}
+async function toggleAdmin(username,value){const r=await fetch(`/admin/api/admin-users/${encodeURIComponent(username)}/active?value=${value}`,{method:'PATCH'});if(!r.ok){alert('Status konnte nicht geändert werden.');return}await load();}
+async function changeAdminPassword(username){
+ const password=prompt(`Neues Passwort für ${username} eingeben (mindestens 8 Zeichen):`);
+ if(password===null)return;
+ if(password.length<8){alert('Das Passwort muss mindestens 8 Zeichen lang sein.');return;}
+ const confirmation=prompt(`Neues Passwort für ${username} wiederholen:`);
+ if(password!==confirmation){alert('Die beiden Passwörter stimmen nicht überein.');return;}
+ const r=await fetch(`/admin/api/admin-users/${encodeURIComponent(username)}/password`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
+ if(!r.ok){alert('Passwort konnte nicht geändert werden: '+await r.text());return;}
+ alert(`Passwort für ${username} wurde geändert. Bei der nächsten Anmeldung bitte das neue Passwort verwenden.`);
+}
+async function deleteAdmin(username){if(!confirm(`Admin-Konto ${username} wirklich löschen? Das kann nicht rückgängig gemacht werden.`))return;const r=await fetch(`/admin/api/admin-users/${encodeURIComponent(username)}`,{method:'DELETE'});if(!r.ok){alert('Admin-Konto konnte nicht gelöscht werden: '+await r.text());return}await load();}
+async function deleteParticipant(userId){if(!confirm(`EBICS-Benutzer ${userId} wirklich löschen? Seine EBICS-Schlüssel und Zahlungsberechtigung werden entfernt. Protokolle bleiben als Historie erhalten. Das kann nicht rückgängig gemacht werden.`))return;const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}`,{method:'DELETE'});if(!r.ok){alert('EBICS-Benutzer konnte nicht gelöscht werden: '+await r.text());return}await load();}
+async function loadPermissions(){const userId=$('permissionsUser').value;if(!userId)return;const iban=$('permissionsAccount').value,query=iban?`?iban=${encodeURIComponent(iban)}`:'';const authorization=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/payment-authorization${query}`).then(r=>r.json());document.querySelectorAll('#permissionsForm input[type=radio]').forEach(c=>c.checked=authorization.signatureClass===c.value);const overrides=await apiJson(`/admin/api/participants/${encodeURIComponent(userId)}/payment-authorizations`);$('permissionOverrides').innerHTML=overrides.map(a=>{const account=allAccounts.find(acc=>acc.iban===a.iban);return `<tr><td>${a.iban?a.iban+(account?' · '+account.accountHolder:''):'Standard (alle Konten)'}</td><td>${a.signatureClass}</td><td>${a.iban?`<button onclick="deletePermissionOverride('${userId}','${a.iban}')" style="background:var(--bad)">Override entfernen</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="3">Keine Berechtigungen hinterlegt.</td></tr>';}
+async function deletePermissionOverride(userId,iban){const r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/payment-authorization?iban=${encodeURIComponent(iban)}`,{method:'DELETE'});if(!r.ok){alert('Override konnte nicht entfernt werden: '+await r.text());return}await loadPermissions();}
+$('statementIban').addEventListener('change',links);
+$('logoutButton').addEventListener('click',logout);
+$('protocolLogSearch').addEventListener('input',renderProtocolLogs);
+$('protocolLogOutcome').addEventListener('change',renderProtocolLogs);
+$('protocolLogRefresh').addEventListener('click',load);
+$('paymentStatusFilter').addEventListener('change',load);
+setInterval(()=>{if($('liveRefresh').checked)load();},5000);
+$('transactionForm').addEventListener('submit',async e=>{e.preventDefault(); const payload={iban:$('iban').value,bookingDate:$('bookingDate').value,valueDate:$('valueDate').value,amount:Number($('amount').value),credit:$('credit').value==='true',counterpartyName:$('counterpartyName').value,counterpartyIban:$('counterpartyIban').value,counterpartyBic:$('counterpartyBic').value,purpose:$('purpose').value,endToEndId:$('endToEndId').value}; const r=await fetch('/admin/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const m=$('message'); if(!r.ok){m.className='error';m.textContent='Fehler beim Speichern: '+await r.text();return} m.className='success';m.textContent='Buchung gespeichert.'; e.target.reset();dates();await load();});
+$('adminUserForm').addEventListener('submit',async e=>{e.preventDefault();const payload={username:$('adminUsername').value,displayName:$('adminDisplayName').value,password:$('adminPassword').value,role:$('adminRole').value},r=await fetch('/admin/api/admin-users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),m=$('adminUserMessage');if(!r.ok){m.className='error';m.textContent='Fehler: '+await r.text();return}m.className='success';m.textContent='Admin-Konto angelegt.';e.target.reset();await load();});
+$('paymentOrderForm').addEventListener('submit',async e=>{e.preventDefault();const payload={iban:$('paymentIban').value,amount:Number($('paymentAmount').value),beneficiaryName:$('beneficiaryName').value,beneficiaryIban:$('beneficiaryIban').value,beneficiaryBic:$('beneficiaryBic').value,purpose:$('paymentPurpose').value,endToEndId:$('paymentE2E').value,executionDate:$('executionDate').value},r=await fetch('/admin/api/payment-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),m=$('paymentMessage');if(!r.ok){m.className='error';m.textContent='Fehler: '+await r.text();return}m.className='success';m.textContent='Zahlungsauftrag angelegt.';e.target.reset();dates();$('executionDate').value=new Date().toISOString().slice(0,10);await load();});
+async function signPayment(id){const r=await fetch(`/admin/api/payment-orders/${id}/signatures`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:$(`signer-${id}`).value})});if(!r.ok){alert('Freigabe fehlgeschlagen: '+await r.text());return}await load();}
+$('participantForm').addEventListener('submit',async e=>{e.preventDefault(); const r=await fetch('/admin/api/participants',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:$('userId').value,partnerId:$('partnerId').value,name:$('participantName').value})}); const m=$('participantMessage'); if(!r.ok){m.className='error';m.textContent='Fehler beim Anlegen: '+await r.text();return}m.className='success';m.textContent='Benutzer angelegt.';e.target.reset();await load();});
+$('generateIbanButton').addEventListener('click',async()=>{const m=$('accountMessage'); try{const r=await fetch('/admin/api/accounts/generate-iban'); if(!r.ok){m.className='error';m.textContent='Fehler beim Generieren: '+await r.text();return} const data=await r.json(); $('accountIban').value=data.iban; m.className='';m.textContent='';}catch(err){m.className='error';m.textContent='Fehler beim Generieren: '+err;}});
+let lastSwiftMessage=null;
+async function generateSwiftMessage(pfad){
+  const m=$('swiftMessageError');
+  try{
+    const r=await fetch('/admin/api/swift/'+pfad);
+    if(!r.ok){m.textContent='Fehler beim Generieren: '+await r.text();$('swiftMessage').value='';$('downloadSwiftMessage').disabled=true;lastSwiftMessage=null;return}
+    const data=await r.json();
+    lastSwiftMessage=data; m.textContent=''; $('swiftMessage').value=data.rohtext; $('downloadSwiftMessage').disabled=false;
+    if(data.messageType==='MT700')$('mt707Reference').value=data.referenz;
+  }catch(err){m.textContent='Fehler beim Generieren: '+err;$('swiftMessage').value='';$('downloadSwiftMessage').disabled=true;lastSwiftMessage=null;}
+}
+$('generateMt700').addEventListener('click',()=>generateSwiftMessage('mt700'));
+$('generateMt707').addEventListener('click',()=>generateSwiftMessage('mt707?lcReferenz='+encodeURIComponent($('mt707Reference').value)));
+$('generateMt710').addEventListener('click',()=>generateSwiftMessage('mt710?issuingBank='+encodeURIComponent($('mt710IssuingBank').value)));
+$('generateMt760').addEventListener('click',()=>generateSwiftMessage('mt760'));
+$('downloadSwiftMessage').addEventListener('click',()=>{
+  if(!lastSwiftMessage)return;
+  const blob=new Blob([lastSwiftMessage.rohtext],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=lastSwiftMessage.messageType+'-'+lastSwiftMessage.referenz+'.txt'; a.click(); URL.revokeObjectURL(a.href);
+});
+$('customerForm').addEventListener('submit',async e=>{e.preventDefault(); const payload={partnerId:$('customerPartnerId').value,name:$('customerName').value}; const r=await fetch('/admin/api/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const m=$('customerMessage'); if(!r.ok){m.className='error';m.textContent='Fehler beim Anlegen: '+await r.text();return}m.className='success';m.textContent='Kunde angelegt.';e.target.reset();await load();});
+$('accountForm').addEventListener('submit',async e=>{e.preventDefault(); const payload={iban:$('accountIban').value,partnerId:$('accountPartnerId').value,accountHolder:$('accountHolder').value,openingBalance:Number($('accountOpeningBalance').value),currency:$('accountCurrency').value,userId:$('accountUserId').value||null}; const r=await fetch('/admin/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const m=$('accountMessage'); if(!r.ok){m.className='error';m.textContent='Fehler beim Anlegen: '+await r.text();return}m.className='success';m.textContent='Testkonto angelegt.';e.target.reset();$('accountCurrency').value='EUR';$('accountOpeningBalance').value='0';await load();});
+$('permissionsUser').addEventListener('change',loadPermissions);
+$('permissionsAccount').addEventListener('change',loadPermissions);
+$('permissionsForm').addEventListener('submit',async e=>{e.preventDefault();const userId=$('permissionsUser').value,iban=$('permissionsAccount').value||null,signatureClass=document.querySelector('#permissionsForm input:checked')?.value,r=await fetch(`/admin/api/participants/${encodeURIComponent(userId)}/payment-authorization`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({iban,signatureClass})}),m=$('permissionMessage');if(!r.ok){m.className='error';m.textContent='Fehler beim Speichern: '+await r.text();return}m.className='success';m.textContent=iban?'Konto-Override gespeichert.':'Standard-Zahlungsberechtigung gespeichert.';await loadPermissions();});
+$('generateFeeData').addEventListener('click',async()=>{
+  const m=$('generateMessage');
+  const r=await fetch('/admin/api/transactions/gebuehren-testdaten?iban='+encodeURIComponent($('generateIban').value)+'&months='+$('feeMonths').value+'&azvProMonat='+$('feeAzv').value,{method:'POST'});
+  if(!r.ok){m.className='error';m.textContent='Fehler '+r.status;return;}
+  const e=await r.json();
+  m.className='success';
+  m.textContent=e.monatsabschluss+' Abschlussbuchungen, '+e.azvZahlungen+' AZV-Zahlungen, '+e.azvEntgelte+' AZV-Entgelte angelegt ('+e.uebersprungen+' bereits vorhanden)';
+  await load();
+});
+$('generateTransactions').addEventListener('click',async()=>{const count=Number($('generateCount').value),m=$('generateMessage');const r=await fetch(`/admin/api/transactions/generate?iban=${encodeURIComponent($('generateIban').value)}&count=${count}`,{method:'POST'});if(!r.ok){m.className='error';m.textContent='Fehler beim Generieren: '+await r.text();return}m.className='success';m.textContent=`${count} Buchungen generiert.`;await load();});
+$('generateIban').addEventListener('change',renderLedger);
+async function deleteTransaction(transactionId){if(!confirm(`Buchung ${transactionId} wirklich löschen?`))return;const r=await fetch(`/admin/api/transactions/${encodeURIComponent(transactionId)}`,{method:'DELETE'});if(!r.ok){alert('Löschen fehlgeschlagen: '+await r.text());return}await load();}
+async function deleteAccount(iban){if(!confirm(`Konto ${iban} wirklich löschen? Alle zugehörigen Ledger-Buchungen und die daraus erzeugten CAMT-Auszüge werden entfernt. Das kann nicht rückgängig gemacht werden.`))return;const r=await fetch(`/admin/api/accounts/${encodeURIComponent(iban)}`,{method:'DELETE'});if(!r.ok){alert('Konto konnte nicht gelöscht werden: '+await r.text());return}await load();}
+$('deleteAllTransactions').addEventListener('click',async()=>{const iban=$('generateIban').value,m=$('generateMessage');if(!confirm(`Wirklich alle Buchungen von ${iban} löschen? Künftige CAMT-Auszüge enthalten sie nicht mehr. Das kann nicht rückgängig gemacht werden.`))return;const r=await fetch(`/admin/api/transactions?iban=${encodeURIComponent(iban)}`,{method:'DELETE'});if(!r.ok){m.className='error';m.textContent='Fehler beim Löschen: '+await r.text();return}const body=await r.json();m.className='success';m.textContent=`${body.deleted} Buchungen gelöscht; CAMT-Auszüge sind zurückgesetzt.`;await load();});
+/** Loaded on demand (not part of load()'s Promise.all) because /admin/api/tenants is
+ * SUPERADMIN-only - a scoped ADMIN/OPERATOR gets a 403 here, which must not break the rest of
+ * the dashboard the way an unhandled Promise.all rejection would (see load()'s own top-level
+ * catch further down, added after exactly that kind of incident). */
+async function loadTenants(){
+  const rows=$('tenants'), msg=$('tenantsMessage');
+  msg.className=''; msg.textContent='';
+  try{
+    const tenants=await apiJson('/admin/api/tenants');
+    rows.innerHTML=tenants.map(b=>`<tr><td>${b.hostId}</td><td>${b.hostName}</td><td>${b.protocolVersion}</td><td>${b.bic||''}</td><td><button onclick="deleteTenant('${b.hostId}')" style="background:var(--bad)">Löschen</button></td></tr>`).join('')||'<tr><td colspan="5">Keine Mandanten vorhanden.</td></tr>';
+  }catch(e){
+    rows.innerHTML='';
+    msg.className='error';
+    msg.textContent=String(e.message||'').includes('403')?'Nur für Systemadministratoren (SUPERADMIN) sichtbar.':'Mandanten konnten nicht geladen werden.';
+  }
+  await loadTenantRequests();
+}
+async function loadTenantRequests(){
+  const rows=$('tenantRequests'), msg=$('tenantRequestsMessage');
+  msg.className=''; msg.textContent='';
+  try{
+    const requests=await apiJson('/admin/api/tenant-requests');
+    rows.innerHTML=requests.map(r=>`<tr><td>${logTime(r.requestedAt)}</td><td>${r.hostId}</td><td>${r.hostName}</td><td>${r.adminUsername}</td><td>${r.requesterEmail||'–'}</td><td><button onclick="approveTenantRequest(${r.id})">Genehmigen</button> <button onclick="rejectTenantRequest(${r.id})" style="background:var(--bad)">Ablehnen</button></td></tr>`).join('')||'<tr><td colspan="6">Keine offenen Anfragen.</td></tr>';
+  }catch(e){
+    rows.innerHTML='';
+    msg.className='error';
+    msg.textContent=String(e.message||'').includes('403')?'Nur für Systemadministratoren (SUPERADMIN) sichtbar.':'Anfragen konnten nicht geladen werden.';
+  }
+}
+async function approveTenantRequest(id){if(!confirm('Diese Anfrage genehmigen? Der Mandant und der Admin-Login werden sofort angelegt.'))return;const r=await fetch(`/admin/api/tenant-requests/${id}/approve`,{method:'POST'});if(!r.ok){alert('Genehmigen fehlgeschlagen: '+await r.text());return}await loadTenants();}
+async function rejectTenantRequest(id){const reason=prompt('Grund für die Ablehnung (optional):');if(reason===null)return;const r=await fetch(`/admin/api/tenant-requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:reason||null})});if(!r.ok){alert('Ablehnen fehlgeschlagen: '+await r.text());return}await loadTenants();}
+$('tenantForm').addEventListener('submit',async e=>{e.preventDefault();
+  const payload={hostId:$('tenantHostId').value,hostName:$('tenantHostName').value,protocolVersion:$('tenantProtocolVersion').value||'H005',bic:$('tenantBic').value||null,
+    initialAdminUsername:$('tenantAdminUsername').value||null,initialAdminDisplayName:$('tenantAdminDisplayName').value||null,initialAdminPassword:$('tenantAdminPassword').value||null};
+  const r=await fetch('/admin/api/tenants',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const m=$('tenantCreateMessage');
+  if(!r.ok){m.className='error';m.textContent='Fehler: '+await r.text();return}
+  m.className='success';m.textContent='Mandant angelegt.';e.target.reset();$('tenantProtocolVersion').value='H005';await loadTenants();
+});
+async function deleteTenant(hostId){if(!confirm(`Mandant ${hostId} wirklich löschen? Nur möglich, solange keine Kunden angelegt sind.`))return;const r=await fetch(`/admin/api/tenants/${encodeURIComponent(hostId)}`,{method:'DELETE'});if(!r.ok){alert('Mandant konnte nicht gelöscht werden: '+await r.text());return}await loadTenants();}
+initMenu();
+initProtocolTabs();
+dates();$('executionDate').value=new Date().toISOString().slice(0,10);initTenantSelector().finally(()=>load().catch(e=>{$('accounts').innerHTML='<p class="error">Admin-API nicht erreichbar.</p>';console.error(e)}));
+</script>
+<dialog id="paymentDialog" style="width:min(760px,94vw);max-height:85vh;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:24px;overflow:auto"><button type="button" id="closePaymentDialog" style="float:right">Schließen</button><h2 id="paymentDialogTitle">Zahlungsdetails</h2><div id="paymentDialogContent" style="overflow-wrap:anywhere"></div></dialog>
+<dialog id="protocolLogDialog" style="width:min(760px,94vw);max-height:85vh;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:24px;overflow:auto"><button type="button" id="closeProtocolLogDialog" style="float:right">Schließen</button><h2>Protokolleintrag</h2><div id="protocolLogDialogContent" style="overflow-wrap:anywhere"></div></dialog>
+<script src="/payment-details.js"></script>
+<script src="/event-outbox.js"></script>
+<!-- Vendored (nicht CDN) - siehe beginTotpSetup: das TOTP-Secret darf niemals an einen
+     Drittanbieter geschickt werden, auch nicht indirekt ueber eine externe QR-Bild-API. -->
+<script src="/qrcode-generator.js"></script>
+</body></html>

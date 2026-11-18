@@ -1,0 +1,43 @@
+server:
+  servlet:
+    session:
+      # Same cookie hardening as the main application.yml (this file REPLACES that one on the
+      # test classpath, it is not merged with it - see the note on management.health above).
+      cookie:
+        secure: true
+        same-site: lax
+
+management:
+  health:
+    # Gleicher Grund wie in src/main/resources/application.yml: ohne echten SMTP-Server/RabbitMQ
+    # in der Testumgebung wirft der jeweilige Health-Contributor sonst schon beim Bean-Aufbau
+    # ("'beans' must not be empty" fuer Mail), was den ganzen Testkontext am Start hindert - nicht
+    # nur den Health-Status auf DOWN setzt. Eigener Eintrag hier noetig, weil Spring Boot bei zwei
+    # gleichnamigen application.yml auf dem Klassenpfad (main + test) nur eine davon laedt, nicht
+    # beide zusammenfuehrt.
+    mail:
+      enabled: false
+    rabbit:
+      enabled: false
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:evils;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  mail:
+    host: localhost
+    port: 1025
+evils:
+  crypto:
+    master-secret: test-only-master-secret-not-for-production
+  # Not the "changeit" default: seedBootstrapUser refuses that on an empty user table, and the
+  # shared test context boots with one (DemoDataInitializer runs on every Spring test boot).
+  admin:
+    bootstrap-password: test-only-bootstrap-password-not-for-production
+  mail:
+    absender: test@example.com
